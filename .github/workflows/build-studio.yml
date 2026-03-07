@@ -19,15 +19,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: supabase/supabase
-          # Checkout the commit matching 2026.03.04-sha-0043607 to avoid regressions
+          # Checkout the commit matching 2026.03.04-sha-0043607
           ref: 00436076bbd542f8e9593ae13811dee1cf353f19
           path: supabase
 
-      - name: Patch AuthLayout UI to bypass IS_PLATFORM
+      - name: Patch AuthLayout UI to show all Auth configuration menus
         run: |
-          # Patch AuthLayout menus to bypass IS_PLATFORM checks without breaking Next.js API_URL
+          # Replace IS_PLATFORM with true only in the Auth sidebar menu file
+          # This shows hidden Auth menus (Sign In / Providers, Sessions, Auth Hooks, etc.)
+          # without affecting the rest of the app (especially API_URL computation)
           sed -i "s/IS_PLATFORM/true/g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
-          sed -i "s/import { true } from 'lib\/constants'/ /g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
+          # Clean up the now-unused import from the patched file
+          sed -i "s/import { true } from 'lib\/constants'//g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
+          echo "=== Patched file preview ==="
+          head -5 supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
+
+      - name: Patch Dockerfile to accept NEXT_PUBLIC build args
+        run: |
+          # Insert ARG declarations before the RUN pnpm build line so Next.js sees them
+          sed -i 's/RUN pnpm --filter studio exec next build/ARG NEXT_PUBLIC_API_URL=http:\/\/localhost:3000\/api\nENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL\nRUN pnpm --filter studio exec next build/' supabase/apps/studio/Dockerfile
 
       - name: Get lower case owner name
         id: owner
@@ -51,5 +61,10 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:custom
           target: production
+          # Provide a dummy API URL at build time so Next.js static prerendering
+          # of IS_PLATFORM=false pages doesn't crash with "Invalid URL".
+          # The real value is set at runtime via docker-compose environment variables.
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:3000/api
           cache-from: type=gha
           cache-to: type=gha,mode=max
