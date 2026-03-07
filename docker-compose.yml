@@ -37,8 +37,10 @@ services:
       NEXT_PUBLIC_ENABLE_LOGS: true
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /home/supabase/functions
+      SNIPPETS_MANAGEMENT_FOLDER: /home/supabase/snippets
     volumes:
       - ../files/volumes/functions:/home/supabase/functions:Z
+      - ../files/volumes/snippets:/home/supabase/snippets:Z
 
   kong:
     container_name: ${CONTAINER_PREFIX}-kong
