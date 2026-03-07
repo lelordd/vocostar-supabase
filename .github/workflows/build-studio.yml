@@ -23,10 +23,11 @@ jobs:
           ref: 00436076bbd542f8e9593ae13811dee1cf353f19
           path: supabase
 
-      - name: Patch IS_PLATFORM to true
+      - name: Patch AuthLayout UI to bypass IS_PLATFORM
         run: |
-          sed -i "s/process.env.NEXT_PUBLIC_IS_PLATFORM === 'true'/true/g" supabase/apps/studio/lib/constants/index.ts
-          sed -i "s/process.env.NEXT_PUBLIC_IS_PLATFORM === 'true'/true/g" supabase/apps/studio/next.config.js
+          # Patch AuthLayout menus to bypass IS_PLATFORM checks without breaking Next.js API_URL
+          sed -i "s/IS_PLATFORM/true/g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
+          sed -i "s/import { true } from 'lib\/constants'/ /g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
 
       - name: Get lower case owner name
         id: owner
