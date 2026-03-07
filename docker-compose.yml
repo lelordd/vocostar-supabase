@@ -14,13 +14,7 @@ services:
     image: supabase/studio:2025.04.21-sha-173cc56
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
       timeout: 10s
       interval: 5s
       retries: 3
@@ -42,6 +36,9 @@ services:
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+      EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /home/supabase/functions
+    volumes:
+      - ../files/volumes/functions:/home/supabase/functions:Z
 
   kong:
     container_name: ${CONTAINER_PREFIX}-kong
@@ -74,15 +71,7 @@ services:
     image: supabase/gotrue:v2.171.0
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:9999/health"
-        ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
       timeout: 5s
       interval: 5s
       retries: 3
@@ -139,10 +128,7 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
-    command:
-      [
-        "postgrest"
-      ]
+    command: [ "postgrest" ]
 
   realtime:
     container_name: realtime-dev.${CONTAINER_PREFIX}-realtime
@@ -154,18 +140,7 @@ services:
       analytics:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-sSfL",
-          "--head",
-          "-o",
-          "/dev/null",
-          "-H",
-          "Authorization: Bearer ${ANON_KEY}",
-          "http://localhost:4000/api/tenants/realtime-dev/health"
-        ]
+      test: [ "CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "-H", "Authorization: Bearer ${ANON_KEY}", "http://localhost:4000/api/tenants/realtime-dev/health" ]
       timeout: 5s
       interval: 5s
       retries: 3
@@ -194,15 +169,7 @@ services:
     volumes:
       - ../files/volumes/storage:/var/lib/storage:z
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://storage:5000/status"
-        ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://storage:5000/status" ]
       timeout: 5s
       interval: 5s
       retries: 3
@@ -235,12 +202,7 @@ services:
     volumes:
       - ../files/volumes/storage:/var/lib/storage:z
     healthcheck:
-      test:
-        [
-          "CMD",
-          "imgproxy",
-          "health"
-        ]
+      test: [ "CMD", "imgproxy", "health" ]
       timeout: 5s
       interval: 5s
       retries: 3
@@ -283,12 +245,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command:
-      [
-        "start",
-        "--main-service",
-        "/home/deno/functions/main"
-      ]
+    command: [ "start", "--main-service", "/home/deno/functions/main" ]
 
   analytics:
     container_name: ${CONTAINER_PREFIX}-analytics
@@ -297,12 +254,7 @@ services:
     expose:
       - 4000
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "http://localhost:4000/health"
-        ]
+      test: [ "CMD", "curl", "http://localhost:4000/health" ]
       timeout: 5s
       interval: 5s
       retries: 10
@@ -340,17 +292,7 @@ services:
       - ../files/volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
-      test:
-        [
-        "CMD",
-        "pg_isready",
-        "-U",
-        "postgres",
-        "-p",
-        "${POSTGRES_PORT}",
-        "-h",
-        "localhost"
-        ]
+      test: [ "CMD", "pg_isready", "-U", "postgres", "-p", "${POSTGRES_PORT}", "-h", "localhost" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -367,14 +309,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
-    command:
-      [
-        "postgres",
-        "-c",
-        "config_file=/etc/postgresql/postgresql.conf",
-        "-c",
-        "log_min_messages=fatal"
-      ]
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "log_min_messages=fatal" ]
 
   vector:
     container_name: ${CONTAINER_PREFIX}-vector
@@ -384,25 +319,13 @@ services:
       - ../files/volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
       - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro,z
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://vector:9001/health"
-        ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://vector:9001/health" ]
       timeout: 5s
       interval: 5s
       retries: 3
     environment:
       LOGFLARE_API_KEY: ${LOGFLARE_API_KEY}
-    command:
-      [
-        "--config",
-        "/etc/vector/vector.yml"
-      ]
+    command: [ "--config", "/etc/vector/vector.yml" ]
     security_opt:
       - "label=disable"
 
@@ -416,16 +339,7 @@ services:
     volumes:
       - ../files/volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro,z
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-sSfL",
-          "--head",
-          "-o",
-          "/dev/null",
-          "http://127.0.0.1:4000/api/health"
-        ]
+      test: [ "CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "http://127.0.0.1:4000/api/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -451,12 +365,7 @@ services:
       POOLER_DEFAULT_POOL_SIZE: ${POOLER_DEFAULT_POOL_SIZE}
       POOLER_MAX_CLIENT_CONN: ${POOLER_MAX_CLIENT_CONN}
       POOLER_POOL_MODE: transaction
-    command:
-      [
-        "/bin/sh",
-        "-c",
-        "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
-      ]
+    command: [ "/bin/sh", "-c", "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server" ]
 
   mcp:
     container_name: ${CONTAINER_PREFIX}-mcp-custom
@@ -476,8 +385,7 @@ services:
       SUPABASE_AUTH_JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
       MCP_API_KEY: ${MCP_API_KEY}
-    command: ["sh", "-c", "apk add --no-cache git && rm -rf /app && git clone https://github.com/lelordd/mcp-supabase-hosted.git /app && cd /app && bun install && bun run build && sleep 5 && bun run dist/index.js --transport http --port 3000 --host 0.0.0.0 --cors-origins '*'"]
-
+    command: [ "sh", "-c", "apk add --no-cache git && rm -rf /app && git clone https://github.com/lelordd/mcp-supabase-hosted.git /app && cd /app && bun install && bun run build && sleep 5 && bun run dist/index.js --transport http --port 3000 --host 0.0.0.0 --cors-origins '*'" ]
 
 volumes:
   db-config:
