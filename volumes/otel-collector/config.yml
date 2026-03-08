@@ -1,0 +1,57 @@
+receivers:
+  # Receive OTLP logs from Supabase Log Drains (HTTP protobuf on port 4318)
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Also collect Docker container logs directly (backup/additional source)
+  filelog:
+    include:
+      - /var/lib/docker/containers/*/*.log
+    start_at: beginning
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: json_parser
+        id: parse_docker
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%fZ'
+      - type: move
+        from: attributes.log
+        to: body
+      - type: remove
+        field: attributes.time
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1000
+  resource:
+    attributes:
+      - key: service.name
+        value: "supabase"
+        action: insert
+      - key: deployment.environment
+        value: "production"
+        action: insert
+
+exporters:
+  otlphttp:
+    endpoint: ${env:SIGNOZ_ENDPOINT}
+    tls:
+      insecure: false
+    headers:
+      "signoz-ingestion-key": ${env:SIGNOZ_INGESTION_KEY}
+
+service:
+  pipelines:
+    logs/drains:
+      receivers: [otlp]
+      processors: [batch, resource]
+      exporters: [otlphttp]
+    logs/docker:
+      receivers: [filelog]
+      processors: [batch, resource]
+      exporters: [otlphttp]
