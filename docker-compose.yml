@@ -41,6 +41,28 @@ services:
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /home/supabase/functions
       SNIPPETS_MANAGEMENT_FOLDER: /home/supabase/snippets
+
+      # Passed to Studio so the mock Auth Config API can read and display them in the UI
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: true
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: true
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-your_google_client_id}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET:-your_google_secret}
+      GOTRUE_EXTERNAL_APPLE_ENABLED: true
+      GOTRUE_EXTERNAL_APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-your_apple_client_id}
+      GOTRUE_EXTERNAL_APPLE_SECRET: ${APPLE_SECRET:-your_apple_secret}
+      GOTRUE_OAUTH_SERVER_ENABLED: true
+      GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION: false
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY}
     volumes:
       - ../files/volumes/functions:/home/supabase/functions:Z
       - ../files/volumes/snippets:/home/supabase/snippets:Z

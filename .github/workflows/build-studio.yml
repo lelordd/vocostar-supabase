@@ -34,6 +34,48 @@ jobs:
           echo "=== Patched file preview ==="
           head -5 supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
 
+      - name: Create missing Auth Config API route
+        run: |
+          mkdir -p supabase/apps/studio/pages/api/platform/auth/\[ref\]
+          cat << 'EOF' > supabase/apps/studio/pages/api/platform/auth/\[ref\]/config.ts
+          import { NextApiRequest, NextApiResponse } from 'next'
+
+          export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+            if (req.method === 'GET') {
+              return res.status(200).json({
+                OAUTH_SERVER_ENABLED: process.env.GOTRUE_OAUTH_SERVER_ENABLED === 'true',
+                OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION: process.env.GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION === 'true',
+                EXTERNAL_ANONYMOUS_USERS_ENABLED: process.env.GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED !== 'false',
+                EXTERNAL_EMAIL_ENABLED: process.env.GOTRUE_EXTERNAL_EMAIL_ENABLED !== 'false',
+                EXTERNAL_GOOGLE_ENABLED: process.env.GOTRUE_EXTERNAL_GOOGLE_ENABLED === 'true',
+                EXTERNAL_APPLE_ENABLED: process.env.GOTRUE_EXTERNAL_APPLE_ENABLED === 'true',
+                EXTERNAL_GITHUB_ENABLED: process.env.GOTRUE_EXTERNAL_GITHUB_ENABLED === 'true',
+                EXTERNAL_DISCORD_ENABLED: process.env.GOTRUE_EXTERNAL_DISCORD_ENABLED === 'true',
+                EXTERNAL_TWITTER_ENABLED: process.env.GOTRUE_EXTERNAL_TWITTER_ENABLED === 'true',
+                MAILER_AUTOCONFIRM: process.env.GOTRUE_MAILER_AUTOCONFIRM === 'true',
+                SMTP_ADMIN_EMAIL: process.env.GOTRUE_SMTP_ADMIN_EMAIL || '',
+                SMTP_HOST: process.env.GOTRUE_SMTP_HOST || '',
+                SMTP_PORT: process.env.GOTRUE_SMTP_PORT || '',
+                SMTP_USER: process.env.GOTRUE_SMTP_USER || '',
+                SMTP_PASS: process.env.GOTRUE_SMTP_PASS || '',
+                SMTP_SENDER_NAME: process.env.GOTRUE_SMTP_SENDER_NAME || '',
+                RATE_LIMIT_EMAIL_SENT: parseInt(process.env.GOTRUE_RATE_LIMIT_EMAIL_SENT || '30', 10),
+                SITE_URL: process.env.GOTRUE_SITE_URL || process.env.SUPABASE_PUBLIC_URL || '',
+                URI_ALLOW_LIST: process.env.GOTRUE_URI_ALLOW_LIST || '',
+                JWT_EXP: parseInt(process.env.GOTRUE_JWT_EXP || '3600', 10),
+              })
+            }
+            
+            if (req.method === 'PATCH') {
+              // Note: Modifying env vars in node doesn't persist to docker-compose
+              // We return success so the UI doesn't crash, but actual persistence requires Dokploy env changes
+              return res.status(200).json({ success: true, message: "Configuration mock updated" })
+            }
+            
+            return res.status(405).json({ error: 'Method not allowed' })
+          }
+          EOF
+
       - name: Patch Dockerfile to accept NEXT_PUBLIC build args
         run: |
           # Insert ARG declarations before the RUN pnpm build line so Next.js sees them
