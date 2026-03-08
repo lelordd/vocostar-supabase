@@ -440,7 +440,7 @@ services:
       retries: 10
     depends_on:
       vector:
-        condition: service_healthy
+        condition: service_started
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT}
