@@ -311,7 +311,7 @@ jobs:
           context: ./supabase
           file: ./supabase/apps/studio/Dockerfile
           push: true
-          tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:custom
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:custom-v2
           target: production
           # Provide a dummy API URL at build time so Next.js static prerendering
           # of IS_PLATFORM=false pages doesn't crash with "Invalid URL".
