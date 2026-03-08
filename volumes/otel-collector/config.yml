@@ -31,7 +31,7 @@ processors:
   resource:
     attributes:
       - key: service.name
-        value: "supabase"
+        value: "SUPA-VSTR"
         action: insert
       - key: deployment.environment
         value: "production"
