@@ -266,13 +266,3 @@ sinks:
       headers:
         x-api-key: ${LOGFLARE_PUBLIC_ACCESS_TOKEN?LOGFLARE_PUBLIC_ACCESS_TOKEN is required}
     uri: 'http://analytics:4000/api/logs?source_name=cloudflare.logs.prod'
-
-  signoz:
-    type: "opentelemetry"
-    inputs:
-      - docker_host
-    protocol:
-      type: "http"
-      uri: "https://ingest.automatiser.app/v1/logs"
-    healthcheck:
-      enabled: false
