@@ -57,10 +57,10 @@ processors:
     send_batch_size: 1000
     timeout: 10s
   resourcedetection:
-    detectors: [env, host, system, docker]
+    detectors: [env, system, docker]
 
 exporters:
-  otlp:
+  otlp_grpc:
     endpoint: ${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
@@ -71,12 +71,12 @@ service:
     metrics:
       receivers: [otlp, hostmetrics, prometheus]
       processors: [batch, resourcedetection]
-      exporters: [otlp]
+      exporters: [otlp_grpc]
     traces:
       receivers: [otlp]
       processors: [batch, resourcedetection]
-      exporters: [otlp]
+      exporters: [otlp_grpc]
     logs:
       receivers: [otlp, filelog]
       processors: [batch, resourcedetection]
-      exporters: [otlp]
+      exporters: [otlp_grpc]
