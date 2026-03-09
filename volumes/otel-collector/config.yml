@@ -7,6 +7,7 @@ receivers:
         endpoint: 0.0.0.0:4318
   hostmetrics:
     collection_interval: 60s
+    root_path: /hostfs
     scrapers:
       cpu: {}
       disk: {}
@@ -61,7 +62,7 @@ processors:
 
 exporters:
   otlphttp:
-    endpoint: https://${env:SIGNOZ_ENDPOINT}
+    endpoint: ${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
 
