@@ -28,6 +28,8 @@ receivers:
         - job_name: "MySupabaseJob"
           metrics_path: "/customer/v1/privileged/metrics"
           scheme: https
+          tls_config:
+            insecure_skip_verify: true
           authorization:
             credentials: "${env:SUPABASE_SERVICE_ROLE_JWT}"
           static_configs:
