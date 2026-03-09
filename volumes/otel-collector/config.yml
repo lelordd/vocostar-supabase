@@ -22,20 +22,7 @@ receivers:
         mute_process_io_error: true
         mute_process_user_error: true
       processes: {}
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: "MySupabaseJob"
-          metrics_path: "/customer/v1/privileged/metrics"
-          scheme: https
-          tls_config:
-            insecure_skip_verify: true
-          authorization:
-            credentials: "${env:SERVICE_ROLE_KEY}"
-          static_configs:
-            - targets: ["${env:SUPABASE_METRICS_TARGET}"]
-              labels:
-                group: "MyGroupLabel"
+
   filelog:
     include:
       - /var/lib/docker/containers/*/*.log
@@ -71,7 +58,7 @@ exporters:
 service:
   pipelines:
     metrics:
-      receivers: [otlp, hostmetrics, prometheus]
+      receivers: [otlp, hostmetrics]
       processors: [batch, resourcedetection]
       exporters: [otlphttp]
     traces:
