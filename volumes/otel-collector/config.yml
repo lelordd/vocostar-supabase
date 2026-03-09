@@ -28,10 +28,8 @@ receivers:
         - job_name: "MySupabaseJob"
           metrics_path: "/customer/v1/privileged/metrics"
           scheme: https
-          # Only use basic_auth if SUPABASE_SERVICE_ROLE_JWT is provided
-          # basic_auth:
-          #   username: "service_role"
-          #   password: "${env:SUPABASE_SERVICE_ROLE_JWT}"
+          authorization:
+            credentials: "${env:SUPABASE_SERVICE_ROLE_JWT}"
           static_configs:
             - targets: ["${env:SUPABASE_METRICS_TARGET}"]
               labels:
