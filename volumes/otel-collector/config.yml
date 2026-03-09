@@ -66,6 +66,7 @@ exporters:
     endpoint: ${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
+      insecure_skip_verify: true
 
 service:
   pipelines:
