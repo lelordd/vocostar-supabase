@@ -31,7 +31,7 @@ receivers:
           tls_config:
             insecure_skip_verify: true
           authorization:
-            credentials: "${env:SUPABASE_SERVICE_ROLE_JWT}"
+            credentials: "${env:SERVICE_ROLE_KEY}"
           static_configs:
             - targets: ["${env:SUPABASE_METRICS_TARGET}"]
               labels:
