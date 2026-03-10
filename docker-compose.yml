@@ -479,33 +479,6 @@ services:
     command: [ "--config", "/etc/vector/vector.yml" ]
     security_opt:
       - "label=disable"
-  # OpenTelemetry Collector - forwards container logs to SigNoz
-  otel-collector:
-    container_name: supabase-otel-collector
-    image: otel/opentelemetry-collector-contrib:0.147.0
-    restart: unless-stopped
-    user: "0"
-    expose:
-      - 4317
-      - 4318
-    volumes:
-      - ./volumes/otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
-      - /proc:/hostfs/proc:ro
-      - /sys:/hostfs/sys:ro
-      - /:/hostfs:ro
-    environment:
-      SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-https://ingest.automatiser.app:443}
-      SIGNOZ_INGESTION_KEY: ${SIGNOZ_INGESTION_KEY:-}
-      SUPABASE_METRICS_TARGET: ${SUPABASE_METRICS_TARGET:-db.vocostar.com:443}
-      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-}
-    depends_on:
-      vector:
-        condition: service_started
-    security_opt:
-      - "label=disable"
-
   # Update the DATABASE_URL if you are using an external Postgres database
   supavisor:
     container_name: supabase-pooler
