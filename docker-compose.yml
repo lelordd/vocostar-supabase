@@ -301,7 +301,7 @@ services:
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       TENANT_ID: ${STORAGE_TENANT_ID}
       # TODO: https://github.com/supabase/storage-api/issues/55
-      REGION: ${REGION:-ENAM}
+      REGION: ${REGION:-auto}
       ENABLE_IMAGE_TRANSFORMATION: "true"
       IMGPROXY_URL: http://imgproxy:5001
       # Cloudflare R2 specific fix for TUS resumable uploads (R2 does not support x-amz-tagging)
