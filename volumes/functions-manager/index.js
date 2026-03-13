@@ -83,11 +83,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // POST /api/v1/projects/:ref/functions
-  const deployMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions$/);
+  // POST /api/v1/projects/:ref/functions/deploy?slug=name
+  const deployMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions(\/deploy)?$/);
   if (req.method === 'POST' && deployMatch) {
     const ref = deployMatch[1];
-    const slug = url.searchParams.get('slug');
+    const slug = url.searchParams.get('slug') || url.searchParams.get('name');
 
     if (!slug) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
