@@ -11,7 +11,7 @@ services:
 
   studio:
     container_name: supabase-studio
-    image: supabase/studio:2026.03.04-sha-0043607
+    image: ghcr.io/mbzadev/studio-supabase:2026.03.04
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
@@ -69,7 +69,7 @@ services:
 
   functions-manager:
     container_name: supabase-functions-manager
-    image: node:20-alpine
+    image: ghcr.io/mbzadev/node:20-alpine
     restart: unless-stopped
     ports:
       - "8085:8085"
@@ -83,7 +83,7 @@ services:
 
   kong:
     container_name: supabase-kong
-    image: kong:2.8.1
+    image: ghcr.io/mbzadev/kong:2.8.1
     restart: unless-stopped
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
@@ -115,7 +115,7 @@ services:
 
   auth:
     container_name: supabase-auth
-    image: supabase/gotrue:v2.187.0
+    image: ghcr.io/mbzadev/gotrue-supabase:v2.187.0
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
@@ -230,7 +230,7 @@ services:
 
   rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v14.6
+    image: ghcr.io/mbzadev/postgrest:v14.6
     restart: unless-stopped
     depends_on:
       db:
@@ -251,7 +251,7 @@ services:
   realtime:
     # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
-    image: supabase/realtime:v2.78.11
+    image: ghcr.io/mbzadev/realtime-supabase:v2.78.11
     restart: unless-stopped
     depends_on:
       db:
@@ -288,7 +288,7 @@ services:
   # To use S3 backed storage: docker compose -f docker-compose.yml -f docker-compose.s3.yml up
   storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.37.8
+    image: ghcr.io/mbzadev/storage-api-supabase:v1.37.8
     restart: unless-stopped
     depends_on:
       db:
@@ -336,7 +336,7 @@ services:
 
   imgproxy:
     container_name: supabase-imgproxy
-    image: darthsim/imgproxy:v3.30.1
+    image: ghcr.io/mbzadev/imgproxy:v3.30.1
     restart: unless-stopped
     volumes:
       - ./volumes/storage:/var/lib/storage:z
@@ -354,7 +354,7 @@ services:
 
   meta:
     container_name: supabase-meta
-    image: supabase/postgres-meta:v0.95.2
+    image: ghcr.io/mbzadev/postgres-meta-supabase:v0.95.2
     restart: unless-stopped
     depends_on:
       db:
@@ -373,7 +373,7 @@ services:
 
   functions:
     container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.70.3
+    image: ghcr.io/mbzadev/edge-runtime-supabase:v1.70.3
     restart: unless-stopped
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
@@ -394,7 +394,7 @@ services:
 
   analytics:
     container_name: supabase-analytics
-    image: supabase/logflare:1.31.2
+    image: ghcr.io/mbzadev/logflare-supabase:1.31.2
     restart: unless-stopped
     # ports:
     #   - 4000:4000
@@ -438,7 +438,7 @@ services:
       # Comment out everything below this point if you are using an external Postgres database
   db:
     container_name: supabase-db
-    image: supabase/postgres:15.8.1.085
+    image: ghcr.io/mbzadev/postgres-supabase:15.8.1.085
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
@@ -487,7 +487,7 @@ services:
 
   vector:
     container_name: supabase-vector
-    image: timberio/vector:0.53.0-alpine
+    image: ghcr.io/mbzadev/vector:0.53.0-alpine
     restart: unless-stopped
     volumes:
       - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
@@ -506,7 +506,7 @@ services:
   # Update the DATABASE_URL if you are using an external Postgres database
   supavisor:
     container_name: supabase-pooler
-    image: supabase/supavisor:2.7.4
+    image: ghcr.io/mbzadev/supavisor-supabase:2.7.4
     restart: unless-stopped
     ports:
       - ${POSTGRES_PORT}:5432
