@@ -151,6 +151,24 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Studio bulk-deletes secrets via DELETE /secrets with body [{name},...]
+  if (secretsBase && req.method === 'DELETE') {
+    try {
+      const body = await readBody(req);
+      const data = JSON.parse(body.toString());
+      const secrets = loadSecrets();
+      const entries = Array.isArray(data) ? data : [data];
+      for (const { name } of entries) {
+        if (name) delete secrets[name];
+      }
+      saveSecrets(secrets);
+      console.log(`Bulk deleted ${entries.length} secret(s)`);
+      return json(200, entries.map(e => ({ name: e.name })));
+    } catch (err) {
+      return json(500, { error: err.message });
+    }
+  }
+
   if (secretsItem && req.method === 'DELETE') {
     const secretName = decodeURIComponent(secretsItem[2]);
     const secrets = loadSecrets();
