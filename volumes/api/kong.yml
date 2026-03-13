@@ -282,6 +282,17 @@ services:
       #      - ::1
       #    deny: []
 
+  ## Functions Manager Deploy
+  - name: functions-manager-deploy
+    url: http://functions-manager:8085/
+    routes:
+      - name: functions-manager-deploy
+        strip_path: true
+        paths:
+          - /api/v1/projects/(?<ref>.*?)/functions-manager-deploy
+    plugins:
+      - name: cors
+
   ## Protected Dashboard - catch all remaining routes
   - name: dashboard
     _comment: 'Studio: /* -> http://studio:3000/*'

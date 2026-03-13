@@ -58,6 +58,22 @@ services:
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
+      - ./volumes/studio-patch/patch.sh:/app/patch.sh:ro
+    command: [ "/bin/sh", "-c", "/app/patch.sh node apps/studio/server.js" ]
+
+  functions-manager:
+    container_name: supabase-functions-manager
+    image: node:20-alpine
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./volumes/functions:/app/functions:rw
+      - ./volumes/functions-manager:/app/src:ro
+    working_dir: /app/src
+    environment:
+      - EDGE_FUNCTIONS_DIR=/app/functions
+    command: [ "sh", "-c", "npm install && npm start" ]
 
   kong:
     container_name: supabase-kong
