@@ -63,7 +63,7 @@ services:
       - |
         # Surgical patch: only patch the chunk with the Deploy button
         # Python script is base64-encoded to avoid YAML/shell escaping issues
-        echo aW1wb3J0IHJlLCBnbG9iCmZvciBmIGluIGdsb2IuZ2xvYigiL2FwcC9hcHBzL3N0dWRpby8ubmV4dC9zdGF0aWMvY2h1bmtzLyouanMiKToKICAgIHRyeToKICAgICAgICBjID0gb3BlbihmKS5yZWFkKCkKICAgICAgICBpZiAiRGVwbG95IGEgbmV3IGZ1bmN0aW9uIiBub3QgaW4gYzoKICAgICAgICAgICAgY29udGludWUKICAgICAgICBvcmlnID0gYwogICAgICAgIGMgPSByZS5zdWIociJbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0mJiIsICJ0cnVlJiYiLCBjKQogICAgICAgIGMgPSByZS5zdWIociIhW0EtWmEtel8kXStcLklTX1BMQVRGT1JNJiYiLCAiZmFsc2UmJiIsIGMpCiAgICAgICAgaWYgYyAhPSBvcmlnOgogICAgICAgICAgICBvcGVuKGYsICJ3Iikud3JpdGUoYykKICAgICAgICAgICAgcHJpbnQoIlBhdGNoZWQ6ICIgKyBmLCBmbHVzaD1UcnVlKQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHByaW50KCJXQVJOIG5vICYmIGZvdW5kIGluOiAiICsgZiwgZmx1c2g9VHJ1ZSkKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICBwcmludCgiRXJyb3I6ICIgKyBzdHIoZSksIGZsdXNoPVRydWUpCg== | base64 -d | python3
+        echo aW1wb3J0IHJlLCBnbG9iCkRFUExPWV9TVFJJTkdTID0gWyJEZXBsb3kgYSBuZXcgZnVuY3Rpb24iXQpUQUJTX1NUUklOR1MgPSBbIkludm9jYXRpb25zIiwgIkVkZ2UgRnVuY3Rpb24gTG9ncyIsICJmdW5jdGlvbiBub3QgZm91bmQiXQpwYXRjaGVkID0gMApmb3IgZiBpbiBnbG9iLmdsb2IoIi9hcHAvYXBwcy9zdHVkaW8vLm5leHQvc3RhdGljL2NodW5rcy8qLmpzIik6CiAgICB0cnk6CiAgICAgICAgYyA9IG9wZW4oZikucmVhZCgpCiAgICAgICAgaWYgIklTX1BMQVRGT1JNIiBub3QgaW4gYzoKICAgICAgICAgICAgY29udGludWUKICAgICAgICBpc19kZXBsb3kgPSBhbnkocyBpbiBjIGZvciBzIGluIERFUExPWV9TVFJJTkdTKQogICAgICAgIGlzX3RhYnMgPSBhbnkocyBpbiBjIGZvciBzIGluIFRBQlNfU1RSSU5HUykKICAgICAgICBpZiBub3QgKGlzX2RlcGxveSBvciBpc190YWJzKToKICAgICAgICAgICAgY29udGludWUKICAgICAgICBvcmlnID0gYwogICAgICAgIGMgPSByZS5zdWIociJbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0mJiIsICJ0cnVlJiYiLCBjKQogICAgICAgIGMgPSByZS5zdWIociIhW0EtWmEtel8kXStcLklTX1BMQVRGT1JNJiYiLCAiZmFsc2UmJiIsIGMpCiAgICAgICAgaWYgYyAhPSBvcmlnOgogICAgICAgICAgICBvcGVuKGYsICJ3Iikud3JpdGUoYykKICAgICAgICAgICAgcHJpbnQoIlBhdGNoZWQ6ICIgKyBmLCBmbHVzaD1UcnVlKQogICAgICAgICAgICBwYXRjaGVkICs9IDEKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICBwcmludCgiRXJyb3I6ICIgKyBzdHIoZSksIGZsdXNoPVRydWUpCnByaW50KCJEb25lOiAiICsgc3RyKHBhdGNoZWQpICsgIiBjaHVuayhzKSBwYXRjaGVkIiwgZmx1c2g9VHJ1ZSkK | base64 -d | python3
         exec docker-entrypoint.sh node apps/studio/server.js
 
 
@@ -390,7 +390,12 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: [ "start", "--main-service", "/home/deno/functions/main" ]
+    command:
+      - sh
+      - -c
+      - |
+        touch /home/deno/functions/secrets.env
+        exec /usr/bin/edge-runtime start --main-service /home/deno/functions/main --env-file /home/deno/functions/secrets.env
 
   analytics:
     container_name: supabase-analytics

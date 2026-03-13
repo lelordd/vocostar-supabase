@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const PORT = 8085;
 const FUNCTIONS_DIR = process.env.EDGE_FUNCTIONS_DIR || '/app/functions';
 const SECRETS_FILE = path.join(FUNCTIONS_DIR, '.secrets.json');
+const SECRETS_ENV_FILE = path.join(FUNCTIONS_DIR, 'secrets.env');
 
 // ---------------------------------------------------------------------------
 // Secrets helpers
@@ -29,6 +30,12 @@ function loadSecrets() {
 function saveSecrets(secrets) {
   fs.mkdirSync(FUNCTIONS_DIR, { recursive: true });
   fs.writeFileSync(SECRETS_FILE, JSON.stringify(secrets, null, 2));
+  // Also write .env format for edge-runtime --env-file
+  const envLines = Object.entries(secrets)
+    .map(([k, v]) => `${k}=${String(v).replace(/\n/g, '\\n')}`)
+    .join('\n');
+  fs.writeFileSync(SECRETS_ENV_FILE, envLines ? envLines + '\n' : '');
+  console.log('Updated secrets.env with', Object.keys(secrets).length, 'secret(s)');
 }
 
 // ---------------------------------------------------------------------------
@@ -216,17 +223,60 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -----------------------------------------------------------------------
-  // FUNCTIONS: DELETE /api/v1/projects/:ref/functions/:slug
+  // FUNCTIONS: GET/DELETE /api/v1/projects/:ref/functions/:slug
+  //   also handles /functions/:slug/stats  /functions/:slug/invocations  /functions/:slug/logs
   // -----------------------------------------------------------------------
-  const functionItem = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions\/([^/]+)$/);
-  if (functionItem && req.method === 'DELETE') {
+  const functionItem = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions\/([^/]+?)(\/[a-z]+)?$/);
+  if (functionItem) {
     const slug = functionItem[2];
-    const functionDir = path.join(FUNCTIONS_DIR, slug);
-    try {
-      if (fs.existsSync(functionDir)) fs.rmSync(functionDir, { recursive: true });
-      return json(200, { slug });
-    } catch (err) {
-      return json(500, { error: err.message });
+    const sub = functionItem[3]; // e.g. '/stats' '/invocations' '/logs'
+
+    if (req.method === 'DELETE' && !sub) {
+      const functionDir = path.join(FUNCTIONS_DIR, slug);
+      try {
+        if (fs.existsSync(functionDir)) fs.rmSync(functionDir, { recursive: true });
+        return json(200, { slug });
+      } catch (err) {
+        return json(500, { error: err.message });
+      }
+    }
+
+    // GET /functions/:slug/stats - for Overview tab
+    if (req.method === 'GET' && sub === '/stats') {
+      return json(200, {
+        total_invocations: 0,
+        execution_time_p50: 0,
+        execution_time_p90: 0,
+        execution_time_p99: 0,
+        error_rate: 0,
+        cpu_time_p50: 0,
+        cpu_time_p90: 0,
+        cpu_time_p99: 0,
+      });
+    }
+
+    // GET /functions/:slug/invocations - for Invocations tab
+    if (req.method === 'GET' && sub === '/invocations') {
+      return json(200, {
+        data: [],
+        count: 0,
+      });
+    }
+
+    // GET /functions/:slug - get single function details
+    if (req.method === 'GET' && !sub) {
+      const functionDir = path.join(FUNCTIONS_DIR, slug);
+      if (!fs.existsSync(functionDir)) return json(404, { error: 'Function not found' });
+      return json(200, {
+        id: crypto.createHash('md5').update(slug).digest('hex'),
+        slug, name: slug,
+        status: 'ACTIVE',
+        verify_jwt: true,
+        created_at: fs.statSync(functionDir).ctimeMs,
+        updated_at: fs.statSync(functionDir).mtimeMs,
+        entrypoint_path: 'file:///src/index.ts',
+        import_map_path: null,
+      });
     }
   }
 
