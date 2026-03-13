@@ -39,6 +39,22 @@ function saveSecrets(secrets) {
 }
 
 // ---------------------------------------------------------------------------
+// Function metadata helpers (.meta.json per function dir)
+// ---------------------------------------------------------------------------
+function loadMeta(slug) {
+  try {
+    const mp = path.join(FUNCTIONS_DIR, slug, '.meta.json');
+    if (fs.existsSync(mp)) return JSON.parse(fs.readFileSync(mp, 'utf8'));
+  } catch (e) { /* ignore */ }
+  return {};
+}
+
+function saveMeta(slug, meta) {
+  const mp = path.join(FUNCTIONS_DIR, slug, '.meta.json');
+  fs.writeFileSync(mp, JSON.stringify(meta, null, 2));
+}
+
+// ---------------------------------------------------------------------------
 // Multipart parser
 // ---------------------------------------------------------------------------
 function parseMultipart(boundary, body) {
@@ -155,11 +171,12 @@ const server = http.createServer(async (req, res) => {
         for (const name of fs.readdirSync(FUNCTIONS_DIR)) {
           const full = path.join(FUNCTIONS_DIR, name);
           if (fs.statSync(full).isDirectory()) {
-            entries.push({
+            const meta = loadMeta(name);
+          entries.push({
               id: crypto.createHash('md5').update(name).digest('hex'),
-              slug: name, name,
+              slug: name, name: meta.name || name,
               status: 'ACTIVE',
-              verify_jwt: true,
+              verify_jwt: meta.verify_jwt !== false,
               created_at: fs.statSync(full).ctimeMs,
               updated_at: fs.statSync(full).mtimeMs,
             });
@@ -300,19 +317,44 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // PATCH / PUT /functions/:slug - update function settings (verify_jwt, name etc.)
+    if ((req.method === 'PATCH' || req.method === 'PUT') && !sub) {
+      try {
+        const body = await readBody(req);
+        const updates = JSON.parse(body.toString());
+        const meta = loadMeta(slug);
+        Object.assign(meta, updates);
+        saveMeta(slug, meta);
+        const functionDir = path.join(FUNCTIONS_DIR, slug);
+        return json(200, {
+          id: crypto.createHash('md5').update(slug).digest('hex'),
+          slug, name: meta.name || slug,
+          status: 'ACTIVE',
+          verify_jwt: meta.verify_jwt !== false,
+          created_at: fs.statSync(functionDir).ctimeMs,
+          updated_at: Date.now(),
+          entrypoint_path: meta.entrypoint_path || 'file:///src/index.ts',
+          import_map_path: meta.import_map_path || null,
+        });
+      } catch (err) {
+        return json(500, { error: err.message });
+      }
+    }
+
     // GET /functions/:slug - get single function details
     if (req.method === 'GET' && !sub) {
       const functionDir = path.join(FUNCTIONS_DIR, slug);
       if (!fs.existsSync(functionDir)) return json(404, { error: 'Function not found' });
+      const meta = loadMeta(slug);
       return json(200, {
         id: crypto.createHash('md5').update(slug).digest('hex'),
-        slug, name: slug,
+        slug, name: meta.name || slug,
         status: 'ACTIVE',
-        verify_jwt: true,
+        verify_jwt: meta.verify_jwt !== false,
         created_at: fs.statSync(functionDir).ctimeMs,
         updated_at: fs.statSync(functionDir).mtimeMs,
-        entrypoint_path: 'file:///src/index.ts',
-        import_map_path: null,
+        entrypoint_path: meta.entrypoint_path || 'file:///src/index.ts',
+        import_map_path: meta.import_map_path || null,
       });
     }
   }
