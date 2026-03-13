@@ -292,7 +292,7 @@ services:
         methods:
           - POST
         paths:
-          - ~/api/v1/projects/(?<ref>[^/]+)/functions
+          - /api/v1/projects/
     plugins:
       - name: cors
 
