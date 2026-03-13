@@ -59,7 +59,7 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
       - ./volumes/studio-patch/patch.sh:/app/patch.sh:ro
-    entrypoint: [ "/bin/sh", "-c", "/app/patch.sh docker-entrypoint.sh node apps/studio/server.js" ]
+    entrypoint: ["/bin/sh", "/app/patch.sh"]
 
 
   functions-manager:
@@ -70,11 +70,11 @@ services:
       - "8085:8085"
     volumes:
       - ./volumes/functions:/app/functions:rw
-      - ./volumes/functions-manager:/app/src:ro
-    working_dir: /app/src
+      - ./volumes/functions-manager/index.js:/app/index.js:ro
+    working_dir: /app
     environment:
       - EDGE_FUNCTIONS_DIR=/app/functions
-    command: [ "sh", "-c", "npm install && npm start" ]
+    command: ["node", "index.js"]
 
   kong:
     container_name: supabase-kong

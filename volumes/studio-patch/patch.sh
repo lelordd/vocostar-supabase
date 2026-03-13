@@ -1,24 +1,27 @@
 #!/bin/sh
+set -e
 
-echo "Applying Supabase Studio Edge Functions Patch..."
+echo "=== Applying Supabase Studio Edge Functions Patch ==="
 
-# Find the bundled JS files that contain the 'edge-functions' and 'new' logic
-# and replace the `IS_PLATFORM` boolean check preventing the UI from showing.
-# Note: In compiled React code, it usually looks like `!X.IS_PLATFORM` or just `IS_PLATFORM`.
+CHUNKS_DIR="/app/apps/studio/.next/static/chunks"
 
-# 1. Enable DeployButton / New Function page
-# This is tricky because the compiled chunk names change. We search all .js files.
-echo "Patching DeployEdgeFunctionButton..."
-find /app/apps/studio/.next -type f -name "*.js" -exec sed -i 's/disabled:!.\.IS_PLATFORM/disabled:false/g' {} +
-find /app/apps/studio/.next -type f -name "*.js" -exec sed -i 's/!.\.IS_PLATFORM?"Unable to deploy function as project is inactive":void 0/void 0/g' {} +
+if [ ! -d "$CHUNKS_DIR" ]; then
+    echo "ERROR: chunks dir not found at $CHUNKS_DIR"
+    exit 1
+fi
 
-# 2. Reroute the API call for deployment.
-# Studio tries to hit /api/v1/projects/:ref/functions/deploy
-# We replace it to hit our custom Kong route /api/v1/projects/:ref/functions-manager-deploy
-# so Kong can route it to port 8085 (functions-manager)
-echo "Patching Deploy API Route..."
-find /app/apps/studio/.next -type f -name "*.js" -exec sed -i 's/\/v1\/projects\/\[ref\]\/functions\/deploy/\/v1\/projects\/\[ref\]\/functions-manager-deploy/g' {} +
-find /app/apps/studio/.next -type f -name "*.js" -exec sed -i 's/\/v1\/projects\/{ref}\/functions\/deploy/\/v1\/projects\/{ref}\/functions-manager-deploy/g' {} +
+# Find the chunk that contains the "Deploy a new function" UI button text
+# and patch all IS_PLATFORM checks to `true` within that file
+PATCHED=0
+for file in $(grep -rl "Deploy a new function" "$CHUNKS_DIR"); do
+    echo "Found Ed Functions chunk: $file"
+    # Replace `X.IS_PLATFORM&&` (where IS_PLATFORM is true = render button) with `true&&`
+    sed -i 's/[A-Za-z_$]\+\.IS_PLATFORM&&/true\&\&/g' "$file"
+    # Replace `!X.IS_PLATFORM&&` (where !IS_PLATFORM = HIDE button) with `false&&`
+    sed -i 's/![A-Za-z_$]\+\.IS_PLATFORM&&/false\&\&/g' "$file"
+    PATCHED=$((PATCHED + 1))
+    echo "Patched: $file"
+done
 
-echo "Patch complete. Starting Studio..."
-exec "$@"
+echo "=== Patch applied to $PATCHED chunk(s). Starting Studio... ==="
+exec docker-entrypoint.sh node apps/studio/server.js

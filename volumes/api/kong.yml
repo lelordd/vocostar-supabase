@@ -283,13 +283,16 @@ services:
       #    deny: []
 
   ## Functions Manager Deploy
+  ## Intercepts POST /api/v1/projects/{ref}/functions and routes to our custom service
   - name: functions-manager-deploy
-    url: http://functions-manager:8085/
+    url: http://functions-manager:8085
     routes:
       - name: functions-manager-deploy
-        strip_path: true
+        strip_path: false
+        methods:
+          - POST
         paths:
-          - /api/v1/projects/(?<ref>.*?)/functions-manager-deploy
+          - ~/api/v1/projects/(?<ref>[^/]+)/functions
     plugins:
       - name: cors
 
