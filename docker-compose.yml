@@ -61,31 +61,9 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        python3 -c "
-        import re, glob, sys
-        chunks = glob.glob('/app/apps/studio/.next/static/chunks/*.js')
-        patched = 0
-        for f in chunks:
-            try:
-                c = open(f).read()
-                if 'IS_PLATFORM' not in c:
-                    continue
-                orig = c
-                # 1. In constants chunk: force IS_PLATFORM=true
-                c = re.sub(r'\"true\"===[a-zA-Z_\$]+\.default\.env\.NEXT_PUBLIC_IS_PLATFORM', 'true', c)
-                # 2. In constants chunk: keep API_URL=/api for self-hosted
-                c = re.sub(r'([a-z])=([a-z])\?[a-zA-Z_\$]+\.default\.env\.NEXT_PUBLIC_API_URL:\"\/api\"', r'\1=\"/api\"', c)
-                # 3. In UI chunk: X.IS_PLATFORM&& -> true&&
-                c = re.sub(r'[A-Za-z_\$]+\.IS_PLATFORM&&', r'true&&', c)
-                # 4. In UI chunk: !X.IS_PLATFORM&& -> false&&
-                c = re.sub(r'![A-Za-z_\$]+\.IS_PLATFORM&&', r'false&&', c)
-                if c != orig:
-                    open(f, 'w').write(c)
-                    patched += 1
-            except Exception as e:
-                print('Error patching %s: %s' % (f, e), flush=True)
-        print('IS_PLATFORM patch: %d files modified' % patched, flush=True)
-        "
+        # Surgical patch: only patch the chunk with the Deploy button
+        # Python script is base64-encoded to avoid YAML/shell escaping issues
+        echo aW1wb3J0IHJlLCBnbG9iCmZvciBmIGluIGdsb2IuZ2xvYigiL2FwcC9hcHBzL3N0dWRpby8ubmV4dC9zdGF0aWMvY2h1bmtzLyouanMiKToKICAgIHRyeToKICAgICAgICBjID0gb3BlbihmKS5yZWFkKCkKICAgICAgICBpZiAiRGVwbG95IGEgbmV3IGZ1bmN0aW9uIiBub3QgaW4gYzoKICAgICAgICAgICAgY29udGludWUKICAgICAgICBvcmlnID0gYwogICAgICAgIGMgPSByZS5zdWIociJbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0mJiIsICJ0cnVlJiYiLCBjKQogICAgICAgIGMgPSByZS5zdWIociIhW0EtWmEtel8kXStcLklTX1BMQVRGT1JNJiYiLCAiZmFsc2UmJiIsIGMpCiAgICAgICAgaWYgYyAhPSBvcmlnOgogICAgICAgICAgICBvcGVuKGYsICJ3Iikud3JpdGUoYykKICAgICAgICAgICAgcHJpbnQoIlBhdGNoZWQ6ICIgKyBmLCBmbHVzaD1UcnVlKQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHByaW50KCJXQVJOIG5vICYmIGZvdW5kIGluOiAiICsgZiwgZmx1c2g9VHJ1ZSkKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICBwcmludCgiRXJyb3I6ICIgKyBzdHIoZSksIGZsdXNoPVRydWUpCg== | base64 -d | python3
         exec docker-entrypoint.sh node apps/studio/server.js
 
 
