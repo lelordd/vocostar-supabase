@@ -434,6 +434,8 @@ services:
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       # Changes required for Pooler support
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      # Fix: sync Logflare API key in _analytics.users to match LOGFLARE_PUBLIC_ACCESS_TOKEN
+      - ./volumes/db/fix_logflare_api_key.sql:/docker-entrypoint-initdb.d/migrations/99-fix-logflare.sql:Z
       # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
@@ -454,6 +456,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
+      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
     command:
       [
         "postgres",
