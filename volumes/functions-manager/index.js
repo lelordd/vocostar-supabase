@@ -2,6 +2,7 @@
  * Supabase Edge Functions Manager
  * Uses ONLY Node.js built-in modules — zero npm dependencies needed.
  * Handles multipart/form-data manually.
+ * Supports: deploy, list, delete functions + secrets CRUD
  */
 
 const http = require('http');
@@ -11,156 +12,229 @@ const crypto = require('crypto');
 
 const PORT = 8085;
 const FUNCTIONS_DIR = process.env.EDGE_FUNCTIONS_DIR || '/app/functions';
+const SECRETS_FILE = path.join(FUNCTIONS_DIR, '.secrets.json');
 
-/**
- * Parse a multipart/form-data body into fields and files.
- * Returns: { fields: {name: value}, files: [{fieldname, originalname, buffer}] }
- */
+// ---------------------------------------------------------------------------
+// Secrets helpers
+// ---------------------------------------------------------------------------
+function loadSecrets() {
+  try {
+    if (fs.existsSync(SECRETS_FILE)) {
+      return JSON.parse(fs.readFileSync(SECRETS_FILE, 'utf8'));
+    }
+  } catch (e) { /* ignore */ }
+  return {};
+}
+
+function saveSecrets(secrets) {
+  fs.mkdirSync(FUNCTIONS_DIR, { recursive: true });
+  fs.writeFileSync(SECRETS_FILE, JSON.stringify(secrets, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// Multipart parser
+// ---------------------------------------------------------------------------
 function parseMultipart(boundary, body) {
   const result = { fields: {}, files: [] };
   const boundaryBuf = Buffer.from('--' + boundary);
   const parts = [];
   let start = 0;
-
-  // Split body by boundary
   while (true) {
     const idx = body.indexOf(boundaryBuf, start);
     if (idx === -1) break;
-    if (start > 0) {
-      // Extract part between previous and current boundary (skip leading CRLF)
-      parts.push(body.slice(start, idx - 2)); // remove trailing \r\n
-    }
-    start = idx + boundaryBuf.length + 2; // skip boundary + \r\n
+    if (start > 0) parts.push(body.slice(start, idx - 2));
+    start = idx + boundaryBuf.length + 2;
   }
-
   for (const part of parts) {
-    // Find the header/body separator (\r\n\r\n)
     const headerEnd = part.indexOf('\r\n\r\n');
     if (headerEnd === -1) continue;
-
     const headerStr = part.slice(0, headerEnd).toString();
     const bodyPart = part.slice(headerEnd + 4);
-
-    // Parse Content-Disposition
     const cdMatch = headerStr.match(/Content-Disposition:[^\r\n]*name="([^"]+)"/i);
     if (!cdMatch) continue;
     const name = cdMatch[1];
-
     const filenameMatch = headerStr.match(/filename="([^"]+)"/i);
     if (filenameMatch) {
-      result.files.push({
-        fieldname: name,
-        originalname: filenameMatch[1],
-        buffer: bodyPart
-      });
+      result.files.push({ fieldname: name, originalname: filenameMatch[1], buffer: bodyPart });
     } else {
       result.fields[name] = bodyPart.toString();
     }
   }
-
   return result;
 }
 
-const server = http.createServer((req, res) => {
+// ---------------------------------------------------------------------------
+// JSON body reader
+// ---------------------------------------------------------------------------
+function readBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// HTTP Server
+// ---------------------------------------------------------------------------
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  const json = (status, obj) => {
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(obj));
+  };
 
   // Health check
   if (req.method === 'GET' && pathname === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
+    return json(200, { status: 'ok' });
   }
 
-  // POST /api/v1/projects/:ref/functions/deploy?slug=name
+  // -----------------------------------------------------------------------
+  // SECRETS: GET /api/v1/projects/:ref/secrets
+  // -----------------------------------------------------------------------
+  const secretsBase = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/secrets$/);
+  const secretsItem = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/secrets\/([^/]+)$/);
+
+  if (secretsBase && req.method === 'GET') {
+    const secrets = loadSecrets();
+    // Return array of {name, value:'[masked]'} — mask values like cloud Supabase
+    const list = Object.keys(secrets).map(name => ({ name, value: '***' }));
+    return json(200, list);
+  }
+
+  if (secretsBase && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH')) {
+    // Accepts: [{name, value}, ...] or {name, value}
+    try {
+      const body = await readBody(req);
+      const data = JSON.parse(body.toString());
+      const secrets = loadSecrets();
+      const entries = Array.isArray(data) ? data : [data];
+      for (const { name, value } of entries) {
+        if (name) secrets[name] = value || '';
+      }
+      saveSecrets(secrets);
+      console.log(`Saved ${entries.length} secret(s)`);
+      return json(200, entries.map(e => ({ name: e.name, value: '***' })));
+    } catch (err) {
+      return json(500, { error: err.message });
+    }
+  }
+
+  if (secretsItem && req.method === 'DELETE') {
+    const secretName = decodeURIComponent(secretsItem[2]);
+    const secrets = loadSecrets();
+    delete secrets[secretName];
+    saveSecrets(secrets);
+    console.log(`Deleted secret: ${secretName}`);
+    return json(200, { name: secretName });
+  }
+
+  // -----------------------------------------------------------------------
+  // FUNCTIONS: GET /api/v1/projects/:ref/functions  (list)
+  // -----------------------------------------------------------------------
+  const functionsBase = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions$/);
+  if (functionsBase && req.method === 'GET') {
+    try {
+      const entries = [];
+      if (fs.existsSync(FUNCTIONS_DIR)) {
+        for (const name of fs.readdirSync(FUNCTIONS_DIR)) {
+          const full = path.join(FUNCTIONS_DIR, name);
+          if (fs.statSync(full).isDirectory()) {
+            entries.push({
+              id: crypto.createHash('md5').update(name).digest('hex'),
+              slug: name, name,
+              status: 'ACTIVE',
+              verify_jwt: true,
+              created_at: fs.statSync(full).ctimeMs,
+              updated_at: fs.statSync(full).mtimeMs,
+            });
+          }
+        }
+      }
+      return json(200, entries);
+    } catch (err) {
+      return json(500, { error: err.message });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // FUNCTIONS: POST /api/v1/projects/:ref/functions(/deploy)?  (deploy)
+  // -----------------------------------------------------------------------
   const deployMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions(\/deploy)?$/);
   if (req.method === 'POST' && deployMatch) {
     const ref = deployMatch[1];
     const slug = url.searchParams.get('slug') || url.searchParams.get('name');
 
-    if (!slug) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Missing slug query parameter' }));
-      return;
+    if (!slug) return json(400, { error: 'Missing slug query parameter' });
+
+    const body = await readBody(req);
+    const contentType = req.headers['content-type'] || '';
+    let files = [];
+    let metadata = {};
+
+    const boundaryMatch = contentType.match(/boundary=(.+)/i);
+    if (boundaryMatch) {
+      const parsed = parseMultipart(boundaryMatch[1].trim(), body);
+      files = parsed.files;
+      if (parsed.fields.metadata) {
+        try { metadata = JSON.parse(parsed.fields.metadata); } catch (e) {}
+      }
     }
 
-    // Read full body
-    const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => {
-      const body = Buffer.concat(chunks);
-      const contentType = req.headers['content-type'] || '';
+    if (files.length === 0) return json(400, { error: 'No files uploaded' });
 
-      let files = [];
-      let metadata = {};
-
-      const boundaryMatch = contentType.match(/boundary=(.+)/i);
-      if (boundaryMatch) {
-        const parsed = parseMultipart(boundaryMatch[1].trim(), body);
-        files = parsed.files;
-        if (parsed.fields.metadata) {
-          try { metadata = JSON.parse(parsed.fields.metadata); } catch (e) {}
-        }
+    try {
+      const functionDir = path.join(FUNCTIONS_DIR, slug);
+      fs.mkdirSync(functionDir, { recursive: true });
+      for (const file of files) {
+        fs.writeFileSync(path.join(functionDir, file.originalname), file.buffer);
+        console.log(`Saved: ${path.join(functionDir, file.originalname)}`);
       }
-
-      if (files.length === 0) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No files uploaded' }));
-        return;
-      }
-
-      try {
-        const functionDir = path.join(FUNCTIONS_DIR, slug);
-        fs.mkdirSync(functionDir, { recursive: true });
-
-        for (const file of files) {
-          const filePath = path.join(functionDir, file.originalname);
-          fs.writeFileSync(filePath, file.buffer);
-          console.log(`Saved: ${filePath}`);
-        }
-
-        const responseData = {
-          id: crypto.randomUUID(),
-          slug,
-          name: slug,
-          version: 1,
-          status: 'ACTIVE',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          entrypoint_path: metadata.entrypoint_path || 'file:///src/index.ts',
-          import_map_path: metadata.import_map_path || null,
-          verify_jwt: metadata.verify_jwt !== false
-        };
-
-        console.log(`Deployed function: ${slug} (ref: ${ref})`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(responseData));
-      } catch (err) {
-        console.error('Deployment error:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
-    return;
+      const response = {
+        id: crypto.randomUUID(),
+        slug, name: slug, version: 1,
+        status: 'ACTIVE',
+        created_at: Date.now(), updated_at: Date.now(),
+        entrypoint_path: metadata.entrypoint_path || 'file:///src/index.ts',
+        import_map_path: metadata.import_map_path || null,
+        verify_jwt: metadata.verify_jwt !== false,
+      };
+      console.log(`Deployed function: ${slug} (ref: ${ref})`);
+      return json(200, response);
+    } catch (err) {
+      console.error('Deployment error:', err);
+      return json(500, { error: err.message });
+    }
   }
 
-  // 404
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'Not found' }));
+  // -----------------------------------------------------------------------
+  // FUNCTIONS: DELETE /api/v1/projects/:ref/functions/:slug
+  // -----------------------------------------------------------------------
+  const functionItem = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/functions\/([^/]+)$/);
+  if (functionItem && req.method === 'DELETE') {
+    const slug = functionItem[2];
+    const functionDir = path.join(FUNCTIONS_DIR, slug);
+    try {
+      if (fs.existsSync(functionDir)) fs.rmSync(functionDir, { recursive: true });
+      return json(200, { slug });
+    } catch (err) {
+      return json(500, { error: err.message });
+    }
+  }
+
+  return json(404, { error: 'Not found' });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Edge Functions Manager listening on port ${PORT}`);
   console.log(`Functions directory: ${FUNCTIONS_DIR}`);
+  console.log(`Secrets file: ${SECRETS_FILE}`);
 });
