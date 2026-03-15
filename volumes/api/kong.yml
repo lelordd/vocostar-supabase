@@ -293,6 +293,18 @@ services:
     plugins:
       - name: cors
 
+  ## Platform API - Studio management API (auth config, users, notifications, etc.)
+  ## Intercepts /api/platform/* before Studio's IS_PLATFORM-gated Next.js routes
+  - name: platform-api
+    url: http://functions-manager:8085
+    routes:
+      - name: platform-api-all
+        strip_path: false
+        paths:
+          - /api/platform/
+    plugins:
+      - name: cors
+
   ## Protected Dashboard - catch all remaining routes
   - name: dashboard
     _comment: 'Studio: /* -> http://studio:3000/*'

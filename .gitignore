@@ -1,0 +1,6 @@
+.env
+.env.*
+volumes/db/
+volumes/storage/
+volumes/functions/
+volumes/logs/
