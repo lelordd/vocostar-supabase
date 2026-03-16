@@ -52,11 +52,11 @@ CMD ["pnpm", "dev:studio"]
 # Compile Next.js
 # [VOCOSTAR] NODE_OPTIONS limits heap to avoid OOM in Docker (Next.js 16 + Turbopack is very memory hungry)
 FROM dev AS builder
-ENV NODE_OPTIONS="--max-old-space-size=6144"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Use --no-turbopack for production build (Turbopack is dev-only, more memory-efficient with Webpack for prod)
-RUN pnpm --filter studio exec next build --no-turbopack
+# Production build using Webpack (default in Next.js, Turbopack is opt-in)
+RUN pnpm --filter studio exec next build
 
 
 # Copy only compiled code and dependencies

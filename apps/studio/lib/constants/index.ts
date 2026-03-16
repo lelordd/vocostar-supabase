@@ -2,9 +2,10 @@
 // eslint-disable-next-line barrel-files/avoid-re-export-all
 export * from './infrastructure'
 
-// [VOCOSTAR] Self-hosted mode: IS_PLATFORM=false unlocks all features
-// useCheckEntitlements returns hasAccess=true when IS_PLATFORM=false
+// [VOCOSTAR] IS_PLATFORM=false: Surgical mode. Specific pages/features will be unlocked manually.
+// IS_SELF_HOSTED=true bypasses entitlements and auth checks for self-hosting
 export const IS_PLATFORM = false
+export const IS_SELF_HOSTED = process.env.NEXT_PUBLIC_IS_SELF_HOSTED === 'true' || process.env.NODE_ENV === 'development'
 
 /**
  * Indicates that the app is running in a test environment (E2E tests).
@@ -14,7 +15,12 @@ export const IS_TEST_ENV = process.env.NEXT_PUBLIC_NODE_ENV === 'test'
 
 export const API_URL = (() => {
   if (process.env.NODE_ENV === 'test') return 'http://localhost:3000/api'
-  // [VOCOSTAR] Always use /api in self-hosted
+  // [VOCOSTAR] IS_SELF_HOSTED=true: toujours utiliser une URL absolue car packages/common
+  // utilise new URL(API_URL) qui échoue avec les chemins relatifs (/api)
+  if (process.env.NEXT_PUBLIC_IS_SELF_HOSTED === 'true') {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:8082'
+    return `${siteUrl}/api`
+  }
   if (typeof window !== 'undefined') return '/api'
   if (!!process.env.NEXT_PUBLIC_SITE_URL) return `${process.env.NEXT_PUBLIC_SITE_URL}/api`
   return '/api'

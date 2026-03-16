@@ -223,7 +223,7 @@ services:
 
   ## Secure Database routes
   - name: meta
-    _comment: 'pg-meta: /pg/* -> http://pg-meta:8080/*'
+    _comment: 'pg-meta: /pg/* -> http://meta:8080/*'
     url: http://meta:8080/
     routes:
       - name: meta-all

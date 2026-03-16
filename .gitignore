@@ -4,3 +4,16 @@ volumes/db/
 volumes/storage/
 volumes/functions/
 volumes/logs/
+node_modules/
+.pnpm-store/
+.tmp-supabase/
+.turbo/
+.next/
+dist/
+build/
+*.log
+.DS_Store
+apps/studio/.next/
+apps/studio/node_modules/
+examples/
+
