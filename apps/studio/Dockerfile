@@ -31,7 +31,7 @@ WORKDIR /app
 FROM base AS turbo
 COPY . .
 
-RUN pnpm dlx turbo@2.8.13 prune studio ui --docker
+RUN pnpm dlx turbo@2.8.13 prune studio --docker
 
 # Install dev dependencies (only if needed)
 FROM base AS deps
@@ -55,7 +55,6 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Production build using Webpack (default in Next.js, Turbopack is opt-in)
-RUN cd packages/ui && pnpm install && pnpm run generate-styles
 RUN pnpm --filter studio exec next build
 
 
