@@ -525,12 +525,74 @@ const server = http.createServer(async (req, res) => {
   // The observability page accesses m?.content.filter() — m must have a .content array
   // The SQL editor also uses this endpoint for saved queries
   // -------------------------------------------------------------------------
-  if (pathname.match(/^\/api\/platform\/projects\/([^/]+)\/content/)) {
+  const contentMatch = pathname.match(/^\/api\/platform\/projects\/([^/]+)\/content(\/(.+))?$/);
+  if (contentMatch) {
+    const subPath = contentMatch[2] || ''; // e.g. '', '/count', '/folders', '/item/1'
+
+    // GET /content/count → number
+    if (req.method === 'GET' && subPath === '/count') {
+      return json(200, 0);
+    }
+
+    // GET /content/folders → list of folders
+    if (req.method === 'GET' && subPath === '/folders') {
+      return json(200, []);
+    }
+
+    // GET/PATCH/DELETE /content/item/:id → a specific snippet
+    const itemMatch = subPath.match(/^\/item\/(.+)$/);
+    if (itemMatch) {
+      if (req.method === 'GET') {
+        // Return a safe SQL snippet stub so Studio doesn't crash on .type
+        return json(200, {
+          id: itemMatch[1],
+          type: 'sql',
+          name: 'Untitled Query',
+          description: '',
+          visibility: 'user',
+          content: { sql: '' },
+          owner_id: 'default',
+          project_id: 'default',
+          updated_at: new Date().toISOString(),
+          inserted_at: new Date().toISOString(),
+        });
+      }
+      if (req.method === 'PATCH' || req.method === 'PUT') {
+        try {
+          const body = JSON.parse((await readBody(req)).toString());
+          return json(200, { id: itemMatch[1], type: 'sql', ...body, updated_at: new Date().toISOString() });
+        } catch { return json(200, { id: itemMatch[1], type: 'sql' }); }
+      }
+      if (req.method === 'DELETE') {
+        return json(200, {});
+      }
+    }
+
+    // GET /content (root) → folder with empty content array
     if (req.method === 'GET') {
       return json(200, { content: [], type: 'folder', id: 'root', name: 'root' });
     }
-    // POST — create a new snippet
-    return json(200, { id: Date.now().toString(), content: [], type: 'folder' });
+
+    // POST → create a new snippet
+    if (req.method === 'POST') {
+      try {
+        const body = JSON.parse((await readBody(req)).toString());
+        return json(200, {
+          id: Date.now().toString(),
+          type: body.type || 'sql',
+          name: body.name || 'Untitled Query',
+          description: body.description || '',
+          visibility: body.visibility || 'user',
+          content: body.content || { sql: '' },
+          owner_id: 'default',
+          project_id: 'default',
+          updated_at: new Date().toISOString(),
+          inserted_at: new Date().toISOString(),
+        });
+      } catch { return json(200, { id: Date.now().toString(), type: 'sql', content: { sql: '' } }); }
+    }
+
+    return json(200, { content: [], type: 'folder', id: 'root', name: 'root' });
   }
 
   if (pathname === '/api/platform/profile') {
