@@ -293,6 +293,19 @@ services:
     plugins:
       - name: cors
 
+  ## Analytics routes — go directly to Studio which has LOGFLARE_PRIVATE_ACCESS_TOKEN
+  ## Must be defined BEFORE the /api/platform/ catch-all below
+  - name: platform-analytics
+    _comment: 'Analytics: /api/platform/projects/:ref/analytics/* → Studio:3000 (has LOGFLARE token)'
+    url: http://studio:3000
+    routes:
+      - name: platform-analytics-all
+        strip_path: false
+        paths:
+          - /api/platform/projects/default/analytics
+    plugins:
+      - name: cors
+
   ## Platform API - Studio management API (auth config, users, notifications, etc.)
   ## Intercepts /api/platform/* before Studio's IS_PLATFORM-gated Next.js routes
   - name: platform-api
