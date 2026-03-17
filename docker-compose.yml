@@ -74,6 +74,9 @@ services:
       - SITE_URL=${SITE_URL}
       - ADDITIONAL_REDIRECT_URLS=${ADDITIONAL_REDIRECT_URLS}
       - JWT_EXPIRY=${JWT_EXPIRY}
+      - LOGFLARE_PRIVATE_ACCESS_TOKEN=${LOGFLARE_PRIVATE_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
+      - ANALYTICS_HOST=analytics
+      - ANALYTICS_PORT=4000
     command: [ "node", "index.js" ]
 
   kong:

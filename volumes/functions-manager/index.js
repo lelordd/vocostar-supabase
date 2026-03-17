@@ -28,6 +28,11 @@ const JWT_SECRET        = process.env.JWT_SECRET || 'super-secret-jwt-token-with
 const PG_META_HOST = process.env.PG_META_HOST || 'meta';
 const PG_META_PORT = parseInt(process.env.PG_META_PORT || '8080', 10);
 
+// Analytics (Logflare) proxy
+const ANALYTICS_HOST  = process.env.ANALYTICS_HOST || 'analytics';
+const ANALYTICS_PORT  = parseInt(process.env.ANALYTICS_PORT || '4000', 10);
+const LOGFLARE_TOKEN  = process.env.LOGFLARE_PRIVATE_ACCESS_TOKEN || process.env.LOGFLARE_API_KEY || '';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -786,8 +791,35 @@ const server = http.createServer(async (req, res) => {
     }
 
     // -----------------------------------------------------------------------
+    // Analytics (Logflare) proxy: /api/platform/projects/:ref/analytics/endpoints/:name
+    // Studio self-hosted code: lib/api/self-hosted/logs.ts
+    // Proxies to: http://analytics:4000/endpoints/query/:name?project=:ref&...params
+    // -----------------------------------------------------------------------
+    const analyticsEndpointMatch = pathname.match(/^\/api\/platform\/projects\/([^/]+)\/analytics\/endpoints\/([^/?]+)$/);
+    if (analyticsEndpointMatch) {
+      const ref  = analyticsEndpointMatch[1];
+      const name = analyticsEndpointMatch[2];
+      const queryParams = new URLSearchParams(url.searchParams);
+      queryParams.set('project', ref);  // Logflare expects ?project=:ref
+      const logflareUrl = `/endpoints/query/${name}?${queryParams.toString()}`;
+      try {
+        const r = await httpRequest(
+          req.method === 'POST' ? 'GET' : req.method, // Logflare uses GET
+          ANALYTICS_HOST, ANALYTICS_PORT, logflareUrl,
+          null, // no body for Logflare
+          { 'x-api-key': LOGFLARE_TOKEN, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+        );
+        return json(r.status, r.data);
+      } catch (err) {
+        console.error(`Analytics proxy error for ${logflareUrl}: ${err.message}`);
+        return json(200, { result: [], error: null });
+      }
+    }
+
+    // -----------------------------------------------------------------------
     // Catch-all stubs — must return appropriate empty types
     // -----------------------------------------------------------------------
+
 
     // /api/platform/pg-meta/:ref/* → proxy to real meta service (http://meta:8080)
     // Strip /api/platform/pg-meta/:ref prefix, forward remaining path
