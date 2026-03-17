@@ -54,13 +54,14 @@ services:
 
   functions-manager:
     container_name: ${CONTAINER_PREFIX}-supabase-functions-manager
-    image: node:20-alpine
+    build:
+      context: ./volumes/functions-manager
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "8085:8085"
     volumes:
       - ./volumes/functions:/app/functions
-      - ./volumes/functions-manager/index.js:/app/index.js:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /app
     environment:
@@ -68,9 +69,6 @@ services:
       - SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
       - GOTRUE_HOST=supabase-auth
       - GOTRUE_PORT=9999
-      - DOCKER_AUTH_CONTAINER=supabase-auth
-      - PG_META_HOST=meta
-      - PG_META_PORT=8080
       - ANON_KEY=${ANON_KEY}
       - SUPABASE_PUBLIC_URL=${SUPABASE_PUBLIC_URL}
       - SITE_URL=${SITE_URL}
