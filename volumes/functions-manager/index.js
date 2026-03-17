@@ -24,6 +24,10 @@ const SERVICE_ROLE_KEY  = process.env.SERVICE_ROLE_KEY || '';
 const ANON_KEY          = process.env.ANON_KEY || '';
 const JWT_SECRET        = process.env.JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
 
+// pg-meta proxy
+const PG_META_HOST = process.env.PG_META_HOST || 'meta';
+const PG_META_PORT = parseInt(process.env.PG_META_PORT || '8080', 10);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -733,6 +737,37 @@ const server = http.createServer(async (req, res) => {
     // Catch-all stubs — must return appropriate empty types
     // -----------------------------------------------------------------------
 
+    // /api/platform/pg-meta/:ref/* → proxy to real meta service (http://meta:8080)
+    // Strip /api/platform/pg-meta/:ref prefix, forward remaining path
+    const pgMetaMatch = pathname.match(/^\/api\/platform\/pg-meta\/([^/]+)(\/.*)$/);
+    if (pgMetaMatch) {
+      const metaPath = pgMetaMatch[2]; // e.g. /query, /tables, /types, etc.
+      const metaQuery = url.search || '';
+      const fullMetaPath = metaPath + metaQuery;
+      try {
+        const reqBody = (req.method !== 'GET' && req.method !== 'DELETE')
+          ? await readBody(req) : null;
+        const bodyObj = reqBody && reqBody.length ? JSON.parse(reqBody.toString()) : null;
+
+        // Forward important headers (pg credentials come via x-connection-encrypted etc.)
+        const forwardHeaders = {};
+        ['x-pg-application-name', 'x-connection-encrypted', 'content-type',
+         'authorization', 'x-request-id'].forEach(h => {
+          if (req.headers[h]) forwardHeaders[h] = req.headers[h];
+        });
+
+        const r = await httpRequest(
+          req.method, PG_META_HOST, PG_META_PORT, fullMetaPath, bodyObj, forwardHeaders
+        );
+        return json(r.status, r.data);
+      } catch (err) {
+        console.error(`pg-meta proxy error for ${fullMetaPath}: ${err.message}`);
+        // Return safe empty fallback based on path
+        const isArray = !fullMetaPath.startsWith('/query');
+        return json(200, isArray ? [] : { data: null, error: null });
+      }
+    }
+
     // /api/platform/projects/:ref/* — catch unknown sub-paths
     if (pathname.match(/^\/api\/platform\/projects\/([^/]+)\/.+$/)) {
       console.log(`Platform projects sub-path stub: ${pathname}`);
@@ -742,11 +777,7 @@ const server = http.createServer(async (req, res) => {
     // /api/platform/* catch-all
     if (pathname.startsWith('/api/platform/')) {
       console.log(`Platform API catch-all stub: ${pathname}`);
-      const mustBeArray = pathname.includes('/pg-meta/')
-        || pathname.includes('/query-performance')
-        || pathname.endsWith('s')
-        || pathname.includes('/run-lints');
-      return json(200, mustBeArray ? [] : {});
+      return json(200, {});
     }
 
     // /api/v1/* catch-all
