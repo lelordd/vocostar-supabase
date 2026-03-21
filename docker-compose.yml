@@ -151,7 +151,7 @@ services:
     command: [ "postgrest" ]
 
   realtime:
-    container_name: ${CONTAINER_PREFIX}-realtime-dev.supabase-realtime
+    container_name: realtime-dev.supabase-realtime
     image: ghcr.io/mbzadev/realtime-supabase:v2.78.11
     restart: unless-stopped
     depends_on:
