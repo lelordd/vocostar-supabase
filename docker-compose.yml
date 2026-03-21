@@ -353,7 +353,7 @@ services:
         "-c",
         "config_file=/etc/postgresql/postgresql.conf",
         "-c",
-        "log_min_messages=log"
+        "log_min_messages=fatal"
       ]
 
   vector:
