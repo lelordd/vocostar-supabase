@@ -425,6 +425,26 @@ services:
       DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE}
     command: [ "/bin/sh", "-c", "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server" ]
 
+  mcp:
+    container_name: ${CONTAINER_PREFIX}-mcp-custom
+    image: oven/bun:1.1-alpine
+    restart: unless-stopped
+    ports:
+      - "${MCP_PORT:-3033}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      kong:
+        condition: service_started
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_AUTH_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      MCP_API_KEY: ${MCP_API_KEY}
+    command: ["sh", "-c", "apk add --no-cache git && rm -rf /app && git clone https://github.com/lelordd/mcp-supabase-hosted.git /app && cd /app && bun install && bun run build && sleep 5 && bun run dist/index.js --transport http --port 3000 --host 0.0.0.0 --cors-origins '*'"]
+
 volumes:
   db-config:
     name: supabase_db_config
